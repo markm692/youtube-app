@@ -1,0 +1,3 @@
+# Copy this to local.properties and add your YouTube API key
+# DO NOT commit local.properties to git
+YOUTUBE_API_KEY=your_api_key_here
