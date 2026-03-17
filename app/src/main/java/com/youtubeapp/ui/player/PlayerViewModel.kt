@@ -1,13 +1,12 @@
 package com.youtubeapp.ui.player
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.youtubeapp.data.repository.YouTubeRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
+import com.youtubeapp.YouTubeApp
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class PlayerUiState(
     val title: String = "",
@@ -17,10 +16,8 @@ data class PlayerUiState(
     val isLoading: Boolean = true
 )
 
-@HiltViewModel
-class PlayerViewModel @Inject constructor(
-    private val repository: YouTubeRepository
-) : ViewModel() {
+class PlayerViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = (application as YouTubeApp).repository
 
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState

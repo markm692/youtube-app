@@ -1,26 +1,22 @@
 package com.youtubeapp.ui.home
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.youtubeapp.YouTubeApp
 import com.youtubeapp.data.model.VideoItem
-import com.youtubeapp.data.repository.YouTubeRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class HomeUiState(
     val videos: List<VideoItem> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null,
-    val nextPageToken: String? = null
+    val error: String? = null
 )
 
-@HiltViewModel
-class HomeViewModel @Inject constructor(
-    private val repository: YouTubeRepository
-) : ViewModel() {
+class HomeViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = (application as YouTubeApp).repository
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState
@@ -36,8 +32,7 @@ class HomeViewModel @Inject constructor(
                 val response = repository.getPopularVideos()
                 _uiState.value = _uiState.value.copy(
                     videos = response.items,
-                    isLoading = false,
-                    nextPageToken = response.items.firstOrNull()?.let { null } // simplified
+                    isLoading = false
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(

@@ -14,14 +14,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
     videoId: String,
     onBack: () -> Unit,
-    viewModel: PlayerViewModel = hiltViewModel()
+    viewModel: PlayerViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -32,7 +32,7 @@ fun PlayerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(uiState.title) },
+                title = { Text(uiState.title, maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -46,7 +46,6 @@ fun PlayerScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // YouTube player via WebView
             AndroidView(
                 factory = { context ->
                     WebView(context).apply {
@@ -60,42 +59,40 @@ fun PlayerScreen(
                         settings.cacheMode = WebSettings.LOAD_DEFAULT
                         webChromeClient = WebChromeClient()
                         webViewClient = WebViewClient()
+
+                        val html = """
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <meta name="viewport" content="width=device-width, initial-scale=1">
+                                <style>
+                                    body { margin: 0; background: #000; }
+                                    .container { position: relative; width: 100%; padding-bottom: 56.25%; }
+                                    iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+                                </style>
+                            </head>
+                            <body>
+                                <div class="container">
+                                    <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1&rel=0"
+                                        allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                                </div>
+                            </body>
+                            </html>
+                        """.trimIndent()
+                        loadDataWithBaseURL(
+                            "https://www.youtube.com",
+                            html,
+                            "text/html",
+                            "UTF-8",
+                            null
+                        )
                     }
-                },
-                update = { webView ->
-                    val html = """
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <meta name="viewport" content="width=device-width, initial-scale=1">
-                            <style>
-                                body { margin: 0; background: #000; }
-                                .container { position: relative; width: 100%; padding-bottom: 56.25%; }
-                                iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="container">
-                                <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1&rel=0"
-                                    allow="autoplay; encrypted-media" allowfullscreen></iframe>
-                            </div>
-                        </body>
-                        </html>
-                    """.trimIndent()
-                    webView.loadDataWithBaseURL(
-                        "https://www.youtube.com",
-                        html,
-                        "text/html",
-                        "UTF-8",
-                        null
-                    )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
             )
 
-            // Video details
             if (uiState.isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier

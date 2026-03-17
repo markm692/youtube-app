@@ -1,16 +1,15 @@
 package com.youtubeapp.ui.search
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.youtubeapp.YouTubeApp
 import com.youtubeapp.data.model.SearchItem
-import com.youtubeapp.data.repository.YouTubeRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class SearchUiState(
     val query: String = "",
@@ -19,10 +18,8 @@ data class SearchUiState(
     val error: String? = null
 )
 
-@HiltViewModel
-class SearchViewModel @Inject constructor(
-    private val repository: YouTubeRepository
-) : ViewModel() {
+class SearchViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = (application as YouTubeApp).repository
 
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState
@@ -31,8 +28,6 @@ class SearchViewModel @Inject constructor(
 
     fun onQueryChange(query: String) {
         _uiState.value = _uiState.value.copy(query = query)
-
-        // Debounce search
         searchJob?.cancel()
         if (query.length >= 2) {
             searchJob = viewModelScope.launch {
