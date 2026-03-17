@@ -41,6 +41,24 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: ./gradlew assembleDebug -PYOUTUBE_API_KEY="$YOUTUBE_API_KEY"
 
+      - name: Sign Debug APK
+        run: |
+          # Create a debug keystore
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -alias debug \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Debug,OU=Debug,O=Debug,L=Debug,ST=Debug,C=US"
+          # Find and sign the APK
+          APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+          ${ANDROID_HOME}/build-tools/$(ls ${ANDROID_HOME}/build-tools/ | tail -1)/apksigner sign \
+            --ks debug.keystore \
+            --ks-key-alias debug \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            "$APK"
+
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -51,6 +69,16 @@ jobs:
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: ./gradlew assembleRelease -PYOUTUBE_API_KEY="$YOUTUBE_API_KEY"
+
+      - name: Sign Release APK
+        run: |
+          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          ${ANDROID_HOME}/build-tools/$(ls ${ANDROID_HOME}/build-tools/ | tail -1)/apksigner sign \
+            --ks debug.keystore \
+            --ks-key-alias debug \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            "$APK"
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
