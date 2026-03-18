@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.youtubeapp.YouTubeApp
 import com.youtubeapp.data.model.VideoItem
+import com.youtubeapp.data.repository.YouTubeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -16,7 +17,11 @@ data class HomeUiState(
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = (application as YouTubeApp).repository
+    private val repository: YouTubeRepository? = try {
+        (application as YouTubeApp).repository
+    } catch (e: Exception) {
+        null
+    }
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState
@@ -26,10 +31,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadPopularVideos() {
+        val repo = repository ?: run {
+            _uiState.value = _uiState.value.copy(error = "App not initialized")
+            return
+        }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                val response = repository.getPopularVideos()
+                val response = repo.getPopularVideos()
                 _uiState.value = _uiState.value.copy(
                     videos = response.items,
                     isLoading = false

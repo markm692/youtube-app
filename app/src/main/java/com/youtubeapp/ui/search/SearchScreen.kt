@@ -5,9 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -23,7 +20,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.youtubeapp.data.model.SearchItem
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     onVideoClick: (String) -> Unit,
@@ -32,64 +28,60 @@ fun SearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Search") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Simple top bar
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            OutlinedTextField(
-                value = uiState.query,
-                onValueChange = { viewModel.onQueryChange(it) },
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search videos...") },
-                trailingIcon = {
-                    IconButton(onClick = { viewModel.onSearch() }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(24.dp)
-            )
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onBack) {
+                    Text("Back")
+                }
+                Text("Search", style = MaterialTheme.typography.titleMedium)
+            }
+        }
 
-            when {
-                uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+        OutlinedTextField(
+            value = uiState.query,
+            onValueChange = { viewModel.onQueryChange(it) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            placeholder = { Text("Search videos...") },
+            singleLine = true,
+            shape = RoundedCornerShape(24.dp)
+        )
+
+        when {
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
-                uiState.error != null -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(uiState.error ?: "Error", color = MaterialTheme.colorScheme.error)
-                    }
+            }
+            uiState.error != null -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(uiState.error ?: "Error", color = MaterialTheme.colorScheme.error)
                 }
-                else -> {
-                    LazyColumn {
-                        items(uiState.results) { item ->
-                            SearchResultItem(
-                                item = item,
-                                onClick = { item.id.videoId?.let(onVideoClick) }
-                            )
-                        }
+            }
+            else -> {
+                LazyColumn {
+                    items(uiState.results) { item ->
+                        SearchResultItem(
+                            item = item,
+                            onClick = { item.id.videoId?.let(onVideoClick) }
+                        )
                     }
                 }
             }

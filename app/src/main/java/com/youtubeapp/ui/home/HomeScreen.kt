@@ -4,8 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -20,7 +18,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.youtubeapp.data.model.VideoItem
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onVideoClick: (String) -> Unit,
@@ -29,40 +26,45 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("YouTube") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                actions = {
-                    IconButton(onClick = onSearchClick) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Simple top bar without TopAppBar
+        Surface(
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            when {
-                uiState.isLoading && uiState.videos.isEmpty() -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "YouTube",
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                TextButton(onClick = onSearchClick) {
+                    Text("Search", color = MaterialTheme.colorScheme.onPrimary)
                 }
-                uiState.error != null && uiState.videos.isEmpty() -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+            }
+        }
+
+        when {
+            uiState.isLoading && uiState.videos.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            uiState.error != null && uiState.videos.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(uiState.error ?: "Error", color = MaterialTheme.colorScheme.error)
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(onClick = { viewModel.refresh() }) {
@@ -70,11 +72,11 @@ fun HomeScreen(
                         }
                     }
                 }
-                else -> {
-                    LazyColumn {
-                        items(uiState.videos) { video ->
-                            VideoCard(video = video, onClick = { onVideoClick(video.id) })
-                        }
+            }
+            else -> {
+                LazyColumn {
+                    items(uiState.videos) { video ->
+                        VideoCard(video = video, onClick = { onVideoClick(video.id) })
                     }
                 }
             }
