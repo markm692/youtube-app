@@ -4,11 +4,8 @@ import com.youtubeapp.BuildConfig
 import com.youtubeapp.data.model.SearchResponse
 import com.youtubeapp.data.model.VideoListResponse
 import com.youtubeapp.data.remote.YouTubeApiService
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class YouTubeRepository @Inject constructor(
+class YouTubeRepository(
     private val apiService: YouTubeApiService
 ) {
     private val apiKey = BuildConfig.YOUTUBE_API_KEY
