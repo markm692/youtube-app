@@ -1,9 +1,8 @@
 package com.youtubeapp.ui.search
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -18,15 +17,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.youtubeapp.YouTubeApp
 import com.youtubeapp.data.model.FeedVideo
 import com.youtubeapp.data.model.SearchItem
-import com.youtubeapp.ui.home.VideoCard
-
-/** Matches the home feed so both surfaces break to the same column count. */
-private val CARD_MIN_WIDTH = 320.dp
+import com.youtubeapp.ui.components.VideoRow
 
 @Composable
 fun SearchScreen(
@@ -36,9 +33,6 @@ fun SearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val keyboard = LocalSoftwareKeyboardController.current
-    val context = LocalContext.current
-    val app = remember { context.applicationContext as YouTubeApp }
-    val thumbnailMode by app.settings.thumbnailMode.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Surface(
@@ -107,21 +101,24 @@ fun SearchScreen(
             }
 
             else -> {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = CARD_MIN_WIDTH),
-                    contentPadding = PaddingValues(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                var expandedId by rememberSaveable { mutableStateOf<String?>(null) }
+                LazyColumn(
+                    contentPadding = PaddingValues(vertical = 8.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(
                         uiState.results.filter { it.id.videoId != null },
                         key = { it.id.videoId!! }
                     ) { item ->
-                        VideoCard(
-                            video = item.toFeedVideo(),
-                            onClick = { item.id.videoId?.let(onVideoClick) },
-                            mode = thumbnailMode
+                        val video = item.toFeedVideo()
+                        VideoRow(
+                            video = video,
+                            expanded = expandedId == video.videoId,
+                            onToggle = {
+                                expandedId =
+                                    if (expandedId == video.videoId) null else video.videoId
+                            },
+                            onPlay = { onVideoClick(video.videoId) }
                         )
                     }
                 }

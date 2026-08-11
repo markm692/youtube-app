@@ -5,30 +5,22 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import com.youtubeapp.YouTubeApp
-import com.youtubeapp.data.model.FeedVideo
-import com.youtubeapp.data.settings.ThumbnailMode
+import com.youtubeapp.ui.components.VideoRow
 import kotlinx.coroutines.launch
 
 @Composable
@@ -42,7 +34,6 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val app = remember { context.applicationContext as YouTubeApp }
     val authManager = remember { app.authManager }
-    val thumbnailMode by app.settings.thumbnailMode.collectAsState()
 
     // Consent screen result -> hand the Intent back to AuthManager.
     val consentLauncher = rememberLauncherForActivityResult(
@@ -92,12 +83,6 @@ fun HomeScreen(
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { app.settings.cycleThumbnailMode() }) {
-                        Text(
-                            thumbnailMode.label,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
                     TextButton(onClick = onSearchClick) {
                         Text("Search", color = MaterialTheme.colorScheme.onPrimary)
                     }
@@ -148,21 +133,22 @@ fun HomeScreen(
             }
 
             else -> {
-                // Adaptive: the column count follows available width, so a phone
-                // in portrait gets one column and a tablet in landscape gets
-                // several, without branching on device type.
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = CARD_MIN_WIDTH),
-                    contentPadding = PaddingValues(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                // One expansion at a time: revealing a thumbnail collapses the
+                // previous one, so the feed never becomes a wall of images.
+                var expandedId by rememberSaveable { mutableStateOf<String?>(null) }
+                LazyColumn(
+                    contentPadding = PaddingValues(vertical = 8.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(uiState.videos, key = { it.videoId }) { video ->
-                        VideoCard(
+                        VideoRow(
                             video = video,
-                            onClick = { onVideoClick(video.videoId) },
-                            mode = thumbnailMode
+                            expanded = expandedId == video.videoId,
+                            onToggle = {
+                                expandedId =
+                                    if (expandedId == video.videoId) null else video.videoId
+                            },
+                            onPlay = { onVideoClick(video.videoId) }
                         )
                     }
                 }
@@ -200,70 +186,3 @@ private fun SignInPrompt(onSignIn: () -> Unit) {
 
 /** Minimum card width; below this the grid drops to fewer columns. */
 private val CARD_MIN_WIDTH = 320.dp
-
-/**
- * Desaturating rather than hiding thumbnails: most of a thumbnail's pull is
- * colour and face contrast, while its useful signal (is this a tutorial, a
- * clip, a talking head?) survives in greyscale. Hiding them outright tends to
- * cause speculative opens just to find out what something is.
- */
-private val GREYSCALE = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
-
-@Composable
-fun VideoCard(
-    video: FeedVideo,
-    onClick: () -> Unit,
-    mode: ThumbnailMode = ThumbnailMode.HIDDEN
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-    ) {
-        if (mode != ThumbnailMode.HIDDEN) {
-            AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = video.title,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop,
-                colorFilter = if (mode == ThumbnailMode.GREY) GREYSCALE else null
-            )
-        }
-        Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
-            Text(
-                text = video.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = if (mode == ThumbnailMode.HIDDEN) 3 else 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = buildString {
-                    append(video.channelTitle)
-                    // With no thumbnail, runtime is the main cue for what you are
-                    // committing to - and a more honest one than an image.
-                    video.durationSeconds?.let { append("  ·  ").append(formatDuration(it)) }
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-        }
-    }
-}
-
-private fun formatDuration(totalSeconds: Long): String {
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        "%d:%02d:%02d".format(hours, minutes, seconds)
-    } else {
-        "%d:%02d".format(minutes, seconds)
-    }
-}
-
