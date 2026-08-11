@@ -81,7 +81,7 @@ fun HomeScreen(
                         style = MaterialTheme.typography.titleLarge
                     )
                     Text(
-                        if (uiState.isPersonalized) "Your subscriptions" else "Trending",
+                        "Your subscriptions",
                         color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
                         style = MaterialTheme.typography.labelMedium
                     )
@@ -103,6 +103,17 @@ fun HomeScreen(
         }
 
         when {
+            // No trending fallback: signed out there is simply no feed.
+            !uiState.signedIn -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    if (!uiState.authResolved) {
+                        CircularProgressIndicator()
+                    } else {
+                        SignInPrompt(onSignIn = startSignIn)
+                    }
+                }
+            }
+
             uiState.isLoading && uiState.videos.isEmpty() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -136,11 +147,6 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    if (!uiState.signedIn) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            SignInPrompt(onSignIn = startSignIn)
-                        }
-                    }
                     items(uiState.videos, key = { it.videoId }) { video ->
                         VideoCard(video = video, onClick = { onVideoClick(video.videoId) })
                     }
@@ -155,20 +161,23 @@ private fun SignInPrompt(onSignIn: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.widthIn(max = 420.dp).padding(24.dp)
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Text(
-                "Showing public trending videos",
-                style = MaterialTheme.typography.titleSmall,
+                "Sign in to see your subscriptions",
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
             Text(
-                "Sign in to see the latest uploads from channels you subscribe to.",
+                "This app only shows uploads from channels you subscribe to.",
                 style = MaterialTheme.typography.bodySmall
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
             Button(onClick = onSignIn) { Text("Sign in with Google") }
         }
     }

@@ -1,24 +1,29 @@
 package com.youtubeapp.ui.search
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
+import com.youtubeapp.data.model.FeedVideo
 import com.youtubeapp.data.model.SearchItem
+import com.youtubeapp.ui.home.VideoCard
+
+/** Matches the home feed so both surfaces break to the same column count. */
+private val CARD_MIN_WIDTH = 320.dp
 
 @Composable
 fun SearchScreen(
@@ -27,22 +32,18 @@ fun SearchScreen(
     viewModel: SearchViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val keyboard = LocalSoftwareKeyboardController.current
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Simple top bar
         Surface(
             color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().statusBarsPadding()
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onBack) {
-                    Text("Back")
-                }
+                TextButton(onClick = onBack) { Text("Back") }
                 Text("Search", style = MaterialTheme.typography.titleMedium)
             }
         }
@@ -55,31 +56,64 @@ fun SearchScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             placeholder = { Text("Search videos...") },
             singleLine = true,
-            shape = RoundedCornerShape(24.dp)
+            shape = RoundedCornerShape(24.dp),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(
+                onSearch = {
+                    keyboard?.hide()
+                    viewModel.onSearch()
+                }
+            )
         )
 
         when {
             uiState.isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             }
+
             uiState.error != null -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(uiState.error ?: "Error", color = MaterialTheme.colorScheme.error)
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        uiState.error ?: "Error",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(24.dp),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
+
+            uiState.results.isEmpty() -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        if (uiState.query.isBlank()) {
+                            "Type to search YouTube"
+                        } else {
+                            "No results for \"${uiState.query}\""
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(24.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
             else -> {
-                LazyColumn {
-                    items(uiState.results) { item ->
-                        SearchResultItem(
-                            item = item,
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = CARD_MIN_WIDTH),
+                    contentPadding = PaddingValues(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(
+                        uiState.results.filter { it.id.videoId != null },
+                        key = { it.id.videoId!! }
+                    ) { item ->
+                        VideoCard(
+                            video = item.toFeedVideo(),
                             onClick = { item.id.videoId?.let(onVideoClick) }
                         )
                     }
@@ -89,38 +123,10 @@ fun SearchScreen(
     }
 }
 
-@Composable
-fun SearchResultItem(item: SearchItem, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        AsyncImage(
-            model = item.snippet.thumbnails.medium?.url,
-            contentDescription = item.snippet.title,
-            modifier = Modifier
-                .width(160.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.snippet.title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = item.snippet.channelTitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-        }
-    }
-}
+private fun SearchItem.toFeedVideo() = FeedVideo(
+    videoId = id.videoId.orEmpty(),
+    title = snippet.title,
+    channelTitle = snippet.channelTitle,
+    thumbnailUrl = snippet.thumbnails.high?.url ?: snippet.thumbnails.medium?.url,
+    publishedAt = snippet.publishedAt
+)

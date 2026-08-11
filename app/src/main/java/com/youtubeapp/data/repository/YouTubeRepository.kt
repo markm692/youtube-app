@@ -22,9 +22,6 @@ class YouTubeRepository(
     suspend fun searchVideos(query: String, pageToken: String? = null): SearchResponse =
         apiService.searchVideos(query = query, pageToken = pageToken, apiKey = apiKey)
 
-    suspend fun getPopularVideos(pageToken: String? = null): VideoListResponse =
-        apiService.getPopularVideos(pageToken = pageToken, apiKey = apiKey)
-
     suspend fun getVideoDetails(videoId: String): VideoListResponse =
         apiService.getVideoDetails(id = videoId, apiKey = apiKey)
 

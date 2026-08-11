@@ -65,15 +65,6 @@ interface YouTubeApiService {
         @Query("key") apiKey: String
     ): SearchResponse
 
-    @GET("videos")
-    suspend fun getPopularVideos(
-        @Query("part") part: String = "snippet,statistics",
-        @Query("chart") chart: String = "mostPopular",
-        @Query("regionCode") regionCode: String = "US",
-        @Query("maxResults") maxResults: Int = 20,
-        @Query("pageToken") pageToken: String? = null,
-        @Query("key") apiKey: String
-    ): VideoListResponse
 
     @GET("videos")
     suspend fun getVideoDetails(
