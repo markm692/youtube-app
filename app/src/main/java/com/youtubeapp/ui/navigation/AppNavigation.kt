@@ -11,6 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.youtubeapp.ui.channels.ChannelsScreen
 import com.youtubeapp.ui.home.HomeScreen
 import com.youtubeapp.ui.player.PlayerScreen
 import com.youtubeapp.ui.search.SearchScreen
@@ -27,8 +28,15 @@ fun AppNavigation() {
                 },
                 onSearchClick = {
                     navController.navigate("search")
+                },
+                onChannelsClick = {
+                    navController.navigate("channels")
                 }
             )
+        }
+
+        composable("channels") {
+            ChannelsScreen(onBack = { navController.popBackStack() })
         }
 
         composable("search") {

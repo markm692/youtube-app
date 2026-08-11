@@ -70,6 +70,7 @@ data class PlaylistItemSnippet(
     val thumbnails: Thumbnails?,
     val channelTitle: String?,
     val videoOwnerChannelTitle: String?,
+    val videoOwnerChannelId: String?,
     val publishedAt: String?
 )
 
@@ -86,6 +87,8 @@ data class FeedVideo(
     val videoId: String,
     val title: String,
     val channelTitle: String,
+    /** Lets a cached feed be re-filtered when channel selection changes. */
+    val channelId: String? = null,
     val thumbnailUrl: String?,
     val publishedAt: String?,
     /** Populated for the subscription feed; null where not fetched. */

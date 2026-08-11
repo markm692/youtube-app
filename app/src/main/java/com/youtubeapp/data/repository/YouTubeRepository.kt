@@ -61,11 +61,16 @@ class YouTubeRepository(
      */
     fun subscriptionFeed(
         perChannel: Int = VIDEOS_PER_CHANNEL,
-        excludeShorts: Boolean = true
+        excludeShorts: Boolean = true,
+        excludedChannelIds: Set<String> = emptySet()
     ): Flow<List<FeedVideo>> = flow {
+        // Filtering here rather than after fetching means a deselected channel
+        // costs no calls at all, so trimming the list speeds up the feed and
+        // lowers quota use proportionally.
         val channelIds = getMySubscriptions()
             .mapNotNull { it.snippet.resourceId.channelId }
             .distinct()
+            .filterNot { it in excludedChannelIds }
         if (channelIds.isEmpty()) {
             emit(emptyList())
             return@flow
@@ -177,6 +182,7 @@ class YouTubeRepository(
             title = item.snippet.title,
             channelTitle = item.snippet.videoOwnerChannelTitle
                 ?: item.snippet.channelTitle.orEmpty(),
+            channelId = item.snippet.videoOwnerChannelId,
             thumbnailUrl = item.snippet.thumbnails?.high?.url
                 ?: item.snippet.thumbnails?.medium?.url,
             // ISO-8601 timestamps sort correctly as strings.

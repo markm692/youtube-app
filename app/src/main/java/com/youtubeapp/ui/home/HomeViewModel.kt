@@ -33,20 +33,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = app.repository
     private val authManager = app.authManager
     private val feedCache = app.feedCache
+    private val channelPrefs = app.channelPreferences
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState
 
     private var refreshJob: Job? = null
+    private var loadedWithExclusions: Set<String>? = null
 
     init {
         // Show the last known feed straight away; the refresh below replaces it
-        // wave by wave. Without this a cold start is a blank spinner while ~180
-        // calls complete.
+        // wave by wave. Without this a cold start is a blank spinner while the
+        // per-channel calls complete.
         viewModelScope.launch {
             val cached = feedCache.load()
             if (cached.isNotEmpty() && _uiState.value.videos.isEmpty()) {
-                _uiState.value = _uiState.value.copy(videos = cached)
+                _uiState.value = _uiState.value.copy(videos = cached.visible())
             }
         }
         // Consent persists server-side, so this returns a token with no UI and
@@ -62,6 +64,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     load()
                 } else {
                     refreshJob?.cancel()
+                    loadedWithExclusions = null
                     _uiState.value = _uiState.value.copy(
                         videos = emptyList(),
                         isLoading = false,
@@ -71,10 +74,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+        // Changing the channel selection re-fetches, but hide the now-excluded
+        // videos immediately so the list reflects the choice without waiting.
+        viewModelScope.launch {
+            channelPrefs.excluded.collect { excluded ->
+                if (loadedWithExclusions != null && loadedWithExclusions != excluded) {
+                    _uiState.value = _uiState.value.copy(videos = _uiState.value.videos.visible())
+                    load()
+                }
+            }
+        }
     }
 
     fun load() {
         if (!authManager.signedIn.value) return
+        val excluded = channelPrefs.excluded.value
+        loadedWithExclusions = excluded
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             val hasContent = _uiState.value.videos.isNotEmpty()
@@ -85,22 +100,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             )
             try {
                 var latest = emptyList<FeedVideo>()
-                repository.subscriptionFeed().collect { videos ->
-                    latest = videos
-                    // Each wave supersedes the cached list rather than merging,
-                    // so videos removed upstream don't linger.
-                    _uiState.value = _uiState.value.copy(
-                        videos = videos,
-                        isLoading = false
-                    )
-                }
+                repository.subscriptionFeed(excludedChannelIds = excluded)
+                    .collect { videos ->
+                        latest = videos
+                        // Each wave supersedes the previous list rather than
+                        // merging, so videos removed upstream don't linger.
+                        _uiState.value = _uiState.value.copy(
+                            videos = videos,
+                            isLoading = false
+                        )
+                    }
                 _uiState.value = _uiState.value.copy(
                     isRefreshing = false,
-                    error = if (latest.isEmpty()) {
-                        "No recent uploads from your subscriptions"
-                    } else {
-                        null
-                    }
+                    error = if (latest.isEmpty()) emptyFeedMessage(excluded) else null
                 )
                 if (latest.isNotEmpty()) feedCache.save(latest)
             } catch (e: Exception) {
@@ -120,5 +132,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun signOut() {
         viewModelScope.launch { feedCache.clear() }
         authManager.signOut()
+    }
+
+    private fun emptyFeedMessage(excluded: Set<String>): String =
+        if (excluded.isEmpty()) {
+            "No recent uploads from your subscriptions"
+        } else {
+            "No recent uploads from the channels you've selected"
+        }
+
+    /** Drops videos from channels that are currently switched off. */
+    private fun List<FeedVideo>.visible(): List<FeedVideo> {
+        val excluded = channelPrefs.excluded.value
+        if (excluded.isEmpty()) return this
+        return filterNot { it.channelId != null && it.channelId in excluded }
     }
 }

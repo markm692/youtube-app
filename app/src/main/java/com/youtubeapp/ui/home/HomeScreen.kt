@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     onVideoClick: (String) -> Unit,
     onSearchClick: () -> Unit,
+    onChannelsClick: () -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -83,6 +84,9 @@ fun HomeScreen(
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onChannelsClick) {
+                        Text("Channels", color = MaterialTheme.colorScheme.onPrimary)
+                    }
                     TextButton(onClick = onSearchClick) {
                         Text("Search", color = MaterialTheme.colorScheme.onPrimary)
                     }
