@@ -36,6 +36,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<HomeUiState> = _uiState
 
     init {
+        // Consent persists server-side, so re-authorizing on launch returns a
+        // token without any UI. Without this the in-memory token is lost on every
+        // restart and the user appears signed out.
+        viewModelScope.launch {
+            runCatching { authManager.authorize() }
+        }
         viewModelScope.launch {
             authManager.signedIn.collect { signedIn ->
                 _uiState.value = _uiState.value.copy(signedIn = signedIn)

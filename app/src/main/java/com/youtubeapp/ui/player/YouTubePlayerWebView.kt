@@ -15,10 +15,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 /**
  * Embeds a video using YouTube's official IFrame Player API.
  *
- * A raw <iframe src="..."> inside a data-URL document fails with error 152
- * because the player cannot validate the parent origin. The IFrame API with an
- * explicit `origin` playerVar, served from a page whose base URL is
- * youtube.com, is the approach YouTube supports.
+ * The embedding origin must be a third party. Serving this page with a base URL
+ * of https://www.youtube.com — the usual advice for Android WebViews — makes the
+ * player reach onReady and then immediately fail with error 152, because a
+ * genuine embed never has youtube.com as its parent origin. Verified on device:
+ * with a youtube.com base URL every video errors; with a third-party origin the
+ * same videos play. The base URL and the `origin` playerVar must agree.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -41,7 +43,22 @@ fun YouTubePlayerWebView(
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.mediaPlaybackRequiresUserGesture = false
-                webChromeClient = WebChromeClient()
+                // Present as ordinary Chrome rather than a WebView. Not what fixed
+                // error 152 (the embedding origin was), but embedded playback is
+                // less likely to be refused without the "; wv" token.
+                settings.userAgentString = settings.userAgentString
+                    .replace(Regex(";\\s*wv\\b"), "")
+                webChromeClient = object : WebChromeClient() {
+                    override fun onConsoleMessage(
+                        msg: android.webkit.ConsoleMessage
+                    ): Boolean {
+                        android.util.Log.i(
+                            "YTPlayer",
+                            "console: ${msg.message()} @${msg.sourceId()}:${msg.lineNumber()}"
+                        )
+                        return true
+                    }
+                }
                 webViewClient = WebViewClient()
                 setBackgroundColor(0xFF000000.toInt())
 
@@ -61,7 +78,7 @@ fun YouTubePlayerWebView(
             if (webView.tag != videoId) {
                 webView.tag = videoId
                 webView.loadDataWithBaseURL(
-                    "https://www.youtube.com",
+                    "https://example.com",
                     buildPlayerHtml(videoId),
                     "text/html",
                     "utf-8",
@@ -96,10 +113,16 @@ private fun buildPlayerHtml(videoId: String): String = """
         autoplay: 1,
         playsinline: 1,
         rel: 0,
-        origin: 'https://www.youtube.com'
+        origin: 'https://example.com'
       },
       events: {
+        onReady: function () {
+          console.log('player ready; origin=' + window.location.origin +
+                      ' href=' + window.location.href);
+        },
         onError: function (e) {
+          console.log('player error ' + e.data +
+                      ' origin=' + window.location.origin);
           if (window.AndroidPlayer) { AndroidPlayer.onPlayerError(e.data); }
         }
       }
