@@ -137,7 +137,16 @@ class YouTubeRepository(
     companion object {
         private const val MAX_SUBSCRIPTIONS = 200
         private const val MAX_CONCURRENT_REQUESTS = 6
-        private const val SHORTS_MAX_SECONDS = 60L
+        /**
+         * YouTube raised the Shorts ceiling to 3 minutes in late 2024, so 60s
+         * let most of them through — and Shorts cannot be played in an embedded
+         * player at all, reporting error 150 even though videos.list returns
+         * status.embeddable = true for them. Filtering at the real ceiling
+         * removes both the binge-optimised format and videos that would fail to
+         * play. The cost is dropping genuinely short regular uploads, which
+         * cannot be told apart from Shorts through the API.
+         */
+        private const val SHORTS_MAX_SECONDS = 180L
 
         private val ISO_DURATION =
             Regex("""PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?""")
