@@ -28,9 +28,10 @@ import com.youtubeapp.data.model.FeedVideo
  * the image is something you pull deliberately rather than something pushed at
  * you — and opening a video takes a second, separate tap.
  *
- * Wide screens reveal the thumbnail beside the text (the text column shrinks,
- * so it reads as the text sliding left); narrow ones reveal it underneath,
- * where a side-by-side image would leave the title too cramped to read.
+ * Wide screens reveal the thumbnail at the leading edge, so it lands on the
+ * same left margin the text sits on and the text slides right to make room.
+ * Narrow ones reveal it underneath, where a side-by-side image would leave the
+ * title too cramped to read.
  */
 @Composable
 fun VideoRow(
@@ -54,7 +55,22 @@ fun VideoRow(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.Top
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            if (wide) {
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = expandHorizontally(animationSpec = tween(ANIM_MS)) + fadeIn(),
+                    exit = shrinkHorizontally(animationSpec = tween(ANIM_MS)) + fadeOut()
+                ) {
+                    Row {
+                        Thumbnail(video, onPlay, Modifier.width(THUMBNAIL_WIDTH))
+                        Spacer(Modifier.width(20.dp))
+                    }
+                }
+            }
+
+            // Capped rather than weighted: a title stretched across the row is
+            // harder to scan than one that wraps at a comfortable measure.
+            Column(modifier = Modifier.widthIn(max = TITLE_MAX_WIDTH)) {
                 Text(
                     text = video.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -89,20 +105,6 @@ fun VideoRow(
                 }
             }
 
-            // Wide: thumbnail expands in on the right, pushing the text column
-            // narrower, which reads as the text sliding left.
-            if (wide) {
-                AnimatedVisibility(
-                    visible = expanded,
-                    enter = expandHorizontally(animationSpec = tween(ANIM_MS)) + fadeIn(),
-                    exit = shrinkHorizontally(animationSpec = tween(ANIM_MS)) + fadeOut()
-                ) {
-                    Row {
-                        Spacer(Modifier.width(16.dp))
-                        Thumbnail(video, onPlay, Modifier.width(THUMBNAIL_WIDTH))
-                    }
-                }
-            }
         }
     }
     }
@@ -128,7 +130,7 @@ private fun Thumbnail(
         Spacer(Modifier.height(8.dp))
         FilledTonalButton(
             onClick = onPlay,
-            modifier = Modifier.align(Alignment.End)
+            modifier = Modifier.align(Alignment.Start)
         ) {
             Text("Watch")
         }
@@ -148,5 +150,6 @@ private fun formatDuration(totalSeconds: Long): String {
 
 private val WIDE_BREAKPOINT = 600.dp
 private val THUMBNAIL_WIDTH = 260.dp
-private val CONTENT_MAX_WIDTH = 1000.dp
+private val CONTENT_MAX_WIDTH = 900.dp
+private val TITLE_MAX_WIDTH = 460.dp
 private const val ANIM_MS = 260
