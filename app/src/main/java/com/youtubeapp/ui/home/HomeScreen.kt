@@ -28,6 +28,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.youtubeapp.YouTubeApp
 import com.youtubeapp.data.model.FeedVideo
+import com.youtubeapp.data.settings.ThumbnailMode
 import kotlinx.coroutines.launch
 
 @Composable
@@ -41,7 +42,7 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val app = remember { context.applicationContext as YouTubeApp }
     val authManager = remember { app.authManager }
-    val greyscale by app.settings.greyscaleThumbnails.collectAsState()
+    val thumbnailMode by app.settings.thumbnailMode.collectAsState()
 
     // Consent screen result -> hand the Intent back to AuthManager.
     val consentLauncher = rememberLauncherForActivityResult(
@@ -91,9 +92,9 @@ fun HomeScreen(
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { app.settings.toggleGreyscaleThumbnails() }) {
+                    TextButton(onClick = { app.settings.cycleThumbnailMode() }) {
                         Text(
-                            if (greyscale) "Colour" else "Grey",
+                            thumbnailMode.label,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
@@ -161,7 +162,7 @@ fun HomeScreen(
                         VideoCard(
                             video = video,
                             onClick = { onVideoClick(video.videoId) },
-                            greyscale = greyscale
+                            mode = thumbnailMode
                         )
                     }
                 }
@@ -212,7 +213,7 @@ private val GREYSCALE = ColorFilter.colorMatrix(ColorMatrix().apply { setToSatur
 fun VideoCard(
     video: FeedVideo,
     onClick: () -> Unit,
-    greyscale: Boolean = true
+    mode: ThumbnailMode = ThumbnailMode.HIDDEN
 ) {
     Column(
         modifier = Modifier
@@ -220,30 +221,49 @@ fun VideoCard(
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
     ) {
-        AsyncImage(
-            model = video.thumbnailUrl,
-            contentDescription = video.title,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(12.dp)),
-            contentScale = ContentScale.Crop,
-            colorFilter = if (greyscale) GREYSCALE else null
-        )
+        if (mode != ThumbnailMode.HIDDEN) {
+            AsyncImage(
+                model = video.thumbnailUrl,
+                contentDescription = video.title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop,
+                colorFilter = if (mode == ThumbnailMode.GREY) GREYSCALE else null
+            )
+        }
         Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
             Text(
                 text = video.title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                maxLines = 2,
+                maxLines = if (mode == ThumbnailMode.HIDDEN) 3 else 2,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = video.channelTitle,
+                text = buildString {
+                    append(video.channelTitle)
+                    // With no thumbnail, runtime is the main cue for what you are
+                    // committing to - and a more honest one than an image.
+                    video.durationSeconds?.let { append("  ·  ").append(formatDuration(it)) }
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         }
     }
 }
+
+private fun formatDuration(totalSeconds: Long): String {
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%d:%02d".format(minutes, seconds)
+    }
+}
+

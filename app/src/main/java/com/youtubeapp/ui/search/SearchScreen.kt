@@ -38,7 +38,7 @@ fun SearchScreen(
     val keyboard = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
     val app = remember { context.applicationContext as YouTubeApp }
-    val greyscale by app.settings.greyscaleThumbnails.collectAsState()
+    val thumbnailMode by app.settings.thumbnailMode.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Surface(
@@ -121,7 +121,7 @@ fun SearchScreen(
                         VideoCard(
                             video = item.toFeedVideo(),
                             onClick = { item.id.videoId?.let(onVideoClick) },
-                            greyscale = greyscale
+                            mode = thumbnailMode
                         )
                     }
                 }

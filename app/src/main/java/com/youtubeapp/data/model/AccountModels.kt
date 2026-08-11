@@ -87,5 +87,7 @@ data class FeedVideo(
     val title: String,
     val channelTitle: String,
     val thumbnailUrl: String?,
-    val publishedAt: String?
+    val publishedAt: String?,
+    /** Populated for the subscription feed; null where not fetched. */
+    val durationSeconds: Long? = null
 )

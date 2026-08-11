@@ -94,7 +94,7 @@ class YouTubeRepository(
             }
             // ISO-8601 timestamps sort correctly as strings.
             .sortedByDescending { it.publishedAt.orEmpty() }
-            .let { if (excludeShorts) withoutShorts(it) else it }
+            .let { withDurations(it, excludeShorts) }
     }
 
     /**
@@ -107,7 +107,10 @@ class YouTubeRepository(
      * short videos for stricter filtering. Videos whose duration can't be
      * resolved are kept rather than silently dropped.
      */
-    private suspend fun withoutShorts(videos: List<FeedVideo>): List<FeedVideo> {
+    private suspend fun withDurations(
+        videos: List<FeedVideo>,
+        excludeShorts: Boolean
+    ): List<FeedVideo> {
         if (videos.isEmpty()) return videos
         val durations = mutableMapOf<String, Long>()
         videos.map { it.videoId }.chunked(50).forEach { chunk ->
@@ -121,7 +124,14 @@ class YouTubeRepository(
                     }
             }
         }
-        return videos.filter { (durations[it.videoId] ?: Long.MAX_VALUE) > SHORTS_MAX_SECONDS }
+        // The same lookup powers both the Shorts filter and the duration shown
+        // on text-only cards, so surfacing it costs no extra quota.
+        return videos
+            .map { it.copy(durationSeconds = durations[it.videoId]) }
+            .filter {
+                !excludeShorts ||
+                    (it.durationSeconds ?: Long.MAX_VALUE) > SHORTS_MAX_SECONDS
+            }
     }
 
     companion object {
