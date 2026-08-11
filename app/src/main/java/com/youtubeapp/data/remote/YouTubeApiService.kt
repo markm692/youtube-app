@@ -66,6 +66,18 @@ interface YouTubeApiService {
     ): SearchResponse
 
 
+    /**
+     * Durations for up to 50 ids for 1 quota unit. playlistItems does not
+     * return duration, so this is the only way to identify Shorts.
+     */
+    @GET("videos")
+    suspend fun getVideoDurations(
+        @Query("part") part: String = "contentDetails",
+        @Query("id") ids: String,
+        @Query("maxResults") maxResults: Int = 50,
+        @Query("key") apiKey: String
+    ): VideoListResponse
+
     @GET("videos")
     suspend fun getVideoDetails(
         @Query("part") part: String = "snippet,statistics",

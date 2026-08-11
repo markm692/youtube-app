@@ -52,7 +52,13 @@ data class VideoListResponse(
 data class VideoItem(
     val id: String,
     val snippet: Snippet,
-    val statistics: Statistics?
+    val statistics: Statistics?,
+    val contentDetails: VideoContentDetails? = null
+)
+
+data class VideoContentDetails(
+    /** ISO-8601, e.g. "PT1M30S". */
+    val duration: String?
 )
 
 data class Statistics(

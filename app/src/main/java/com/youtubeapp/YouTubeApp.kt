@@ -13,9 +13,13 @@ class YouTubeApp : Application() {
     lateinit var repository: YouTubeRepository
         private set
 
+    lateinit var settings: com.youtubeapp.data.settings.SettingsStore
+        private set
+
     override fun onCreate() {
         super.onCreate()
         authManager = AuthManager(this)
+        settings = com.youtubeapp.data.settings.SettingsStore(this)
         // The interceptor reads the token lazily, so signing in later takes
         // effect without rebuilding the Retrofit stack.
         val apiService = RetrofitInstance.create { authManager.accessToken.value }

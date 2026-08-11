@@ -17,7 +17,10 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.youtubeapp.YouTubeApp
 import com.youtubeapp.data.model.FeedVideo
 import com.youtubeapp.data.model.SearchItem
 import com.youtubeapp.ui.home.VideoCard
@@ -33,6 +36,9 @@ fun SearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val keyboard = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+    val app = remember { context.applicationContext as YouTubeApp }
+    val greyscale by app.settings.greyscaleThumbnails.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Surface(
@@ -114,7 +120,8 @@ fun SearchScreen(
                     ) { item ->
                         VideoCard(
                             video = item.toFeedVideo(),
-                            onClick = { item.id.videoId?.let(onVideoClick) }
+                            onClick = { item.id.videoId?.let(onVideoClick) },
+                            greyscale = greyscale
                         )
                     }
                 }

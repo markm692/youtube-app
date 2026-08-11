@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,7 +39,9 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val authManager = remember { (context.applicationContext as YouTubeApp).authManager }
+    val app = remember { context.applicationContext as YouTubeApp }
+    val authManager = remember { app.authManager }
+    val greyscale by app.settings.greyscaleThumbnails.collectAsState()
 
     // Consent screen result -> hand the Intent back to AuthManager.
     val consentLauncher = rememberLauncherForActivityResult(
@@ -87,6 +91,12 @@ fun HomeScreen(
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { app.settings.toggleGreyscaleThumbnails() }) {
+                        Text(
+                            if (greyscale) "Colour" else "Grey",
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                     TextButton(onClick = onSearchClick) {
                         Text("Search", color = MaterialTheme.colorScheme.onPrimary)
                     }
@@ -148,7 +158,11 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(uiState.videos, key = { it.videoId }) { video ->
-                        VideoCard(video = video, onClick = { onVideoClick(video.videoId) })
+                        VideoCard(
+                            video = video,
+                            onClick = { onVideoClick(video.videoId) },
+                            greyscale = greyscale
+                        )
                     }
                 }
             }
@@ -186,8 +200,20 @@ private fun SignInPrompt(onSignIn: () -> Unit) {
 /** Minimum card width; below this the grid drops to fewer columns. */
 private val CARD_MIN_WIDTH = 320.dp
 
+/**
+ * Desaturating rather than hiding thumbnails: most of a thumbnail's pull is
+ * colour and face contrast, while its useful signal (is this a tutorial, a
+ * clip, a talking head?) survives in greyscale. Hiding them outright tends to
+ * cause speculative opens just to find out what something is.
+ */
+private val GREYSCALE = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+
 @Composable
-fun VideoCard(video: FeedVideo, onClick: () -> Unit) {
+fun VideoCard(
+    video: FeedVideo,
+    onClick: () -> Unit,
+    greyscale: Boolean = true
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -201,7 +227,8 @@ fun VideoCard(video: FeedVideo, onClick: () -> Unit) {
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(12.dp)),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            colorFilter = if (greyscale) GREYSCALE else null
         )
         Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
             Text(

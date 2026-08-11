@@ -46,7 +46,10 @@ class YouTubeRepository(
      * 1 unit per channel for its uploads. ~52 units for 50 subscriptions,
      * which is cheap next to a single search (100 units).
      */
-    suspend fun getSubscriptionFeed(perChannel: Int = 5): List<FeedVideo> = coroutineScope {
+    suspend fun getSubscriptionFeed(
+        perChannel: Int = 5,
+        excludeShorts: Boolean = true
+    ): List<FeedVideo> = coroutineScope {
         val subs = getMySubscriptions()
         val channelIds = subs.mapNotNull { it.snippet.resourceId.channelId }.distinct()
         if (channelIds.isEmpty()) return@coroutineScope emptyList()
@@ -91,10 +94,54 @@ class YouTubeRepository(
             }
             // ISO-8601 timestamps sort correctly as strings.
             .sortedByDescending { it.publishedAt.orEmpty() }
+            .let { if (excludeShorts) withoutShorts(it) else it }
+    }
+
+    /**
+     * Drops Shorts, which are the most binge-optimised format in the feed.
+     *
+     * There is no API flag for "is a Short", so duration is the proxy: one
+     * videos.list call per 50 ids, 1 quota unit each. Note YouTube raised the
+     * Shorts ceiling to 3 minutes in late 2024, so [SHORTS_MAX_SECONDS] only
+     * catches the classic sub-minute ones; raise it to trade a few legitimate
+     * short videos for stricter filtering. Videos whose duration can't be
+     * resolved are kept rather than silently dropped.
+     */
+    private suspend fun withoutShorts(videos: List<FeedVideo>): List<FeedVideo> {
+        if (videos.isEmpty()) return videos
+        val durations = mutableMapOf<String, Long>()
+        videos.map { it.videoId }.chunked(50).forEach { chunk ->
+            runCatching {
+                apiService.getVideoDurations(ids = chunk.joinToString(","), apiKey = apiKey)
+                    .items
+                    .forEach { item ->
+                        item.contentDetails?.duration
+                            ?.let(::parseIsoDurationSeconds)
+                            ?.let { durations[item.id] = it }
+                    }
+            }
+        }
+        return videos.filter { (durations[it.videoId] ?: Long.MAX_VALUE) > SHORTS_MAX_SECONDS }
     }
 
     companion object {
         private const val MAX_SUBSCRIPTIONS = 200
         private const val MAX_CONCURRENT_REQUESTS = 6
+        private const val SHORTS_MAX_SECONDS = 60L
+
+        private val ISO_DURATION =
+            Regex("""PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?""")
+
+        /**
+         * Parses ISO-8601 durations without java.time, which needs API 26 or
+         * desugaring (minSdk here is 24).
+         */
+        internal fun parseIsoDurationSeconds(value: String): Long? {
+            val m = ISO_DURATION.matchEntire(value) ?: return null
+            val hours = m.groupValues[1].toLongOrNull() ?: 0
+            val minutes = m.groupValues[2].toLongOrNull() ?: 0
+            val seconds = m.groupValues[3].toLongOrNull() ?: 0
+            return hours * 3600 + minutes * 60 + seconds
+        }
     }
 }

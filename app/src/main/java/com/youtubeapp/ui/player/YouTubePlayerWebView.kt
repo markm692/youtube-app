@@ -110,8 +110,13 @@ private fun buildPlayerHtml(videoId: String): String = """
       height: '100%',
       videoId: '$videoId',
       playerVars: {
-        autoplay: 1,
+        // Deliberately not autoplaying: opening a video should not commit you
+        // to watching it. Requiring a tap restores a decision point.
+        autoplay: 0,
         playsinline: 1,
+        // rel:0 no longer removes related videos (changed in 2018); it limits
+        // them to the same channel, which is the most restriction the IFrame
+        // API allows.
         rel: 0,
         origin: 'https://example.com'
       },
