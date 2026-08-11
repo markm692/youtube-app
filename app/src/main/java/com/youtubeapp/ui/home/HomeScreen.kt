@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +24,7 @@ import com.youtubeapp.YouTubeApp
 import com.youtubeapp.ui.components.VideoRow
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     onVideoClick: (String) -> Unit,
@@ -146,20 +148,34 @@ fun HomeScreen(
                 // One expansion at a time: revealing a thumbnail collapses the
                 // previous one, so the feed never becomes a wall of images.
                 var expandedId by rememberSaveable { mutableStateOf<String?>(null) }
+                val sections = remember(uiState.videos) {
+                    FeedGrouping.group(uiState.videos)
+                }
                 LazyColumn(
-                    contentPadding = PaddingValues(vertical = 8.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(uiState.videos, key = { it.videoId }) { video ->
-                        VideoRow(
-                            video = video,
-                            expanded = expandedId == video.videoId,
-                            onToggle = {
-                                expandedId =
-                                    if (expandedId == video.videoId) null else video.videoId
-                            },
-                            onPlay = { onVideoClick(video.videoId) }
-                        )
+                    sections.forEach { section ->
+                        stickyHeader(key = "header-" + section.label) {
+                            DayHeader(section.label, section.videos.size)
+                        }
+                        items(section.videos, key = { it.videoId }) { video ->
+                            VideoRow(
+                                video = video,
+                                expanded = expandedId == video.videoId,
+                                onToggle = {
+                                    expandedId =
+                                        if (expandedId == video.videoId) null
+                                        else video.videoId
+                                },
+                                onPlay = { onVideoClick(video.videoId) }
+                            )
+                        }
+                    }
+                    // A finite feed is the point; say so rather than just
+                    // running out of rows.
+                    if (!uiState.isRefreshing) {
+                        item(key = "caught-up") { CaughtUpFooter() }
                     }
                 }
             }
@@ -196,3 +212,48 @@ private fun SignInPrompt(onSignIn: () -> Unit) {
 
 /** Minimum card width; below this the grid drops to fewer columns. */
 private val CARD_MIN_WIDTH = 320.dp
+
+@Composable
+private fun DayHeader(label: String, count: Int) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+            Row(
+                modifier = Modifier
+                    .widthIn(max = 900.dp)
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = if (count == 1) "1 video" else "$count videos",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CaughtUpFooter() {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "You're all caught up",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+        )
+    }
+}
