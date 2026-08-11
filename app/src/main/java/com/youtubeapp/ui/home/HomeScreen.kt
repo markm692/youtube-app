@@ -98,6 +98,12 @@ fun HomeScreen(
             }
         }
 
+        // Thin bar while refreshing over content, so the feed filling in wave
+        // by wave doesn't look like a stall.
+        if (uiState.isRefreshing) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+
         when {
             // No trending fallback: signed out there is simply no feed.
             !uiState.signedIn -> {
