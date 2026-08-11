@@ -11,3 +11,7 @@ local.properties
 /app/build
 *.apk
 debug-apk/
+
+# local screenshots
+*.png
+!app/src/**/*.png

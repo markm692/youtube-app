@@ -1,17 +1,15 @@
 package com.youtubeapp.ui.player
 
-import android.view.ViewGroup
-import android.webkit.WebChromeClient
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
@@ -21,6 +19,8 @@ fun PlayerScreen(
     viewModel: PlayerViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    var playerError by remember(videoId) { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(videoId) {
         viewModel.loadVideo(videoId)
@@ -50,52 +50,49 @@ fun PlayerScreen(
             }
         }
 
-        AndroidView(
-            factory = { context ->
-                WebView(context).apply {
-                    layoutParams = ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
-                    )
-                    settings.javaScriptEnabled = true
-                    settings.mediaPlaybackRequiresUserGesture = false
-                    settings.domStorageEnabled = true
-                    settings.cacheMode = WebSettings.LOAD_DEFAULT
-                    webChromeClient = WebChromeClient()
-                    webViewClient = WebViewClient()
-
-                    val html = """
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <meta name="viewport" content="width=device-width, initial-scale=1">
-                            <style>
-                                body { margin: 0; background: #000; }
-                                .container { position: relative; width: 100%; padding-bottom: 56.25%; }
-                                iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="container">
-                                <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1&rel=0"
-                                    allow="autoplay; encrypted-media" allowfullscreen></iframe>
-                            </div>
-                        </body>
-                        </html>
-                    """.trimIndent()
-                    loadDataWithBaseURL(
-                        "https://www.youtube.com",
-                        html,
-                        "text/html",
-                        "UTF-8",
-                        null
-                    )
-                }
-            },
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
-        )
+        ) {
+            YouTubePlayerWebView(
+                videoId = videoId,
+                onError = { code -> playerError = code },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Some videos can't be embedded (owner restriction, licensing).
+            // Hand off to the YouTube app rather than showing a dead frame.
+            playerError?.let { code ->
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "This video can't be played here (error $code)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(onClick = {
+                            context.startActivity(
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://www.youtube.com/watch?v=$videoId")
+                                )
+                            )
+                        }) {
+                            Text("Watch on YouTube")
+                        }
+                    }
+                }
+            }
+        }
 
         if (uiState.isLoading) {
             CircularProgressIndicator(
