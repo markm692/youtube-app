@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -68,9 +69,7 @@ fun VideoRow(
                 }
             }
 
-            // Capped rather than weighted: a title stretched across the row is
-            // harder to scan than one that wraps at a comfortable measure.
-            Column(modifier = Modifier.widthIn(max = TITLE_MAX_WIDTH)) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = video.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -80,12 +79,7 @@ fun VideoRow(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = buildString {
-                        append(video.channelTitle)
-                        video.durationSeconds?.let {
-                            append("  ·  ").append(formatDuration(it))
-                        }
-                    },
+                    text = video.channelTitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -105,6 +99,17 @@ fun VideoRow(
                 }
             }
 
+            Spacer(Modifier.width(16.dp))
+            // Fixed width and end-aligned so runtimes line up down the page:
+            // the column answers "what do I have time for?" in one pass.
+            Text(
+                text = video.durationSeconds?.let(::formatDuration).orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                modifier = Modifier.width(DURATION_COLUMN_WIDTH)
+            )
         }
     }
     }
@@ -151,5 +156,5 @@ private fun formatDuration(totalSeconds: Long): String {
 private val WIDE_BREAKPOINT = 600.dp
 private val THUMBNAIL_WIDTH = 260.dp
 private val CONTENT_MAX_WIDTH = 900.dp
-private val TITLE_MAX_WIDTH = 460.dp
+private val DURATION_COLUMN_WIDTH = 64.dp
 private const val ANIM_MS = 260
