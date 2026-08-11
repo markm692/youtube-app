@@ -72,7 +72,7 @@ interface YouTubeApiService {
      */
     @GET("videos")
     suspend fun getVideoDurations(
-        @Query("part") part: String = "contentDetails",
+        @Query("part") part: String = "contentDetails,snippet",
         @Query("id") ids: String,
         @Query("maxResults") maxResults: Int = 50,
         @Query("key") apiKey: String

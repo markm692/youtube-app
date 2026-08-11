@@ -25,7 +25,9 @@ data class Snippet(
     val thumbnails: Thumbnails,
     val channelTitle: String,
     @SerializedName("publishedAt")
-    val publishedAt: String
+    val publishedAt: String,
+    /** "none", "upcoming" or "live". */
+    val liveBroadcastContent: String? = null
 )
 
 data class Thumbnails(

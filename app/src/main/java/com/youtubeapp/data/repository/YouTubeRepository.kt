@@ -125,6 +125,15 @@ class YouTubeRepository(
                             ?.let { durations[item.id] = it }
                         // regionRestriction rides along in contentDetails, which
                         // is already being fetched, so this costs no extra quota.
+                        // Premieres and scheduled streams report duration
+                        // "P0D", which is not a PT-form value, so it parses to
+                        // null and would otherwise sit in the feed with a blank
+                        // runtime - and unwatchable.
+                        if (item.snippet?.liveBroadcastContent
+                                ?.lowercase()?.let { it != "none" } == true
+                        ) {
+                            blockedHere += item.id
+                        }
                         item.contentDetails?.regionRestriction?.let { rr ->
                             val allowed = rr.allowed
                             val blocked = rr.blocked
@@ -143,8 +152,8 @@ class YouTubeRepository(
         return videos
             .map { it.copy(durationSeconds = durations[it.videoId]) }
             // Region-locked videos fail in the player with error 150 no matter
-            // what status.embeddable claims, so drop them rather than offering
-            // something that cannot be watched here.
+            // what status.embeddable claims, and premieres cannot be played at
+            // all yet, so drop both rather than offering something unwatchable.
             .filterNot { it.videoId in blockedHere }
             .filter {
                 !excludeShorts ||
