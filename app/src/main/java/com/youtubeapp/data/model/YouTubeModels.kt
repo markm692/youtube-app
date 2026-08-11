@@ -58,7 +58,14 @@ data class VideoItem(
 
 data class VideoContentDetails(
     /** ISO-8601, e.g. "PT1M30S". */
-    val duration: String?
+    val duration: String?,
+    val regionRestriction: RegionRestriction? = null
+)
+
+data class RegionRestriction(
+    /** If present, playback is allowed *only* in these ISO country codes. */
+    val allowed: List<String>? = null,
+    val blocked: List<String>? = null
 )
 
 data class Statistics(

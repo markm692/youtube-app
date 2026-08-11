@@ -113,6 +113,8 @@ class YouTubeRepository(
     ): List<FeedVideo> {
         if (videos.isEmpty()) return videos
         val durations = mutableMapOf<String, Long>()
+        val blockedHere = mutableSetOf<String>()
+        val region = deviceRegion()
         videos.map { it.videoId }.chunked(50).forEach { chunk ->
             runCatching {
                 apiService.getVideoDurations(ids = chunk.joinToString(","), apiKey = apiKey)
@@ -121,6 +123,18 @@ class YouTubeRepository(
                         item.contentDetails?.duration
                             ?.let(::parseIsoDurationSeconds)
                             ?.let { durations[item.id] = it }
+                        // regionRestriction rides along in contentDetails, which
+                        // is already being fetched, so this costs no extra quota.
+                        item.contentDetails?.regionRestriction?.let { rr ->
+                            val allowed = rr.allowed
+                            val blocked = rr.blocked
+                            val playable = when {
+                                allowed != null -> region != null && region in allowed
+                                blocked != null -> region == null || region !in blocked
+                                else -> true
+                            }
+                            if (!playable) blockedHere += item.id
+                        }
                     }
             }
         }
@@ -128,11 +142,19 @@ class YouTubeRepository(
         // on text-only cards, so surfacing it costs no extra quota.
         return videos
             .map { it.copy(durationSeconds = durations[it.videoId]) }
+            // Region-locked videos fail in the player with error 150 no matter
+            // what status.embeddable claims, so drop them rather than offering
+            // something that cannot be watched here.
+            .filterNot { it.videoId in blockedHere }
             .filter {
                 !excludeShorts ||
                     (it.durationSeconds ?: Long.MAX_VALUE) > SHORTS_MAX_SECONDS
             }
     }
+
+    /** ISO country code for this device, used to drop region-locked videos. */
+    private fun deviceRegion(): String? =
+        java.util.Locale.getDefault().country.takeIf { it.isNotBlank() }?.uppercase()
 
     companion object {
         private const val MAX_SUBSCRIPTIONS = 200
