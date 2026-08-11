@@ -7,9 +7,13 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -122,9 +126,18 @@ fun HomeScreen(
             }
 
             else -> {
-                LazyColumn {
+                // Adaptive: the column count follows available width, so a phone
+                // in portrait gets one column and a tablet in landscape gets
+                // several, without branching on device type.
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = CARD_MIN_WIDTH),
+                    contentPadding = PaddingValues(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
                     if (!uiState.signedIn) {
-                        item {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
                             SignInPrompt(onSignIn = startSignIn)
                         }
                     }
@@ -141,9 +154,8 @@ fun HomeScreen(
 private fun SignInPrompt(onSignIn: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
@@ -162,23 +174,27 @@ private fun SignInPrompt(onSignIn: () -> Unit) {
     }
 }
 
+/** Minimum card width; below this the grid drops to fewer columns. */
+private val CARD_MIN_WIDTH = 320.dp
+
 @Composable
 fun VideoCard(video: FeedVideo, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(bottom = 8.dp)
     ) {
         AsyncImage(
             model = video.thumbnailUrl,
             contentDescription = video.title,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(16f / 9f),
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(12.dp)),
             contentScale = ContentScale.Crop
         )
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)) {
             Text(
                 text = video.title,
                 style = MaterialTheme.typography.titleSmall,
